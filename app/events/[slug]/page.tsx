@@ -2,8 +2,10 @@ import BookEvent from "@/components/BookEvent";
 import EventCard from "@/components/EventCard";
 import { IEvent } from "@/database";
 import { getSimilarEventsBySlug } from "@/lib/actions/event.actions";
+import { cacheLife } from "next/cache";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -59,6 +61,23 @@ const EventTags = ({ tags }: { tags: string[] }) => (
   </div>
 );
 
+// Alohida async component — Suspense ichida ishlatiladi
+const SimilarEvents = async ({ slug }: { slug: string }) => {
+  const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
+
+  if (similarEvents.length === 0) return null;
+
+  return (
+    <ul className="events">
+      {similarEvents.map((similarEvent: IEvent) => (
+        <li key={similarEvent.title} className="list-none">
+          <EventCard {...similarEvent} />
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 const EventDetailsPage = async ({
   params,
 }: {
@@ -107,8 +126,6 @@ const EventDetailsPage = async ({
   if (!description) return notFound();
 
   const bookings = 10;
-
-  const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
 
   return (
     <section id="event">
@@ -171,7 +188,7 @@ const EventDetailsPage = async ({
               <p className="text-sm">Be the first to book your spot!</p>
             )}
 
-            <BookEvent />
+            <BookEvent eventId={event._id} slug={slug} />
           </div>
         </aside>
       </div>
@@ -179,14 +196,9 @@ const EventDetailsPage = async ({
       <div className="flex w-full flex-col gap-4 pt-20">
         <h2>Similar Events</h2>
 
-        <ul className="events">
-          {similarEvents.length > 0 &&
-            similarEvents.map((similarEvent: IEvent) => (
-              <li key={similarEvent.title} className="list-none">
-                <EventCard {...similarEvent} />
-              </li>
-            ))}
-        </ul>
+        <Suspense fallback={<p>Loading similar events...</p>}>
+          <SimilarEvents slug={slug} />
+        </Suspense>
       </div>
     </section>
   );
