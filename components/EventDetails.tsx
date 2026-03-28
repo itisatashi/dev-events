@@ -4,9 +4,20 @@ import {getSimilarEventsBySlug} from "@/lib/actions/event.actions";
 import Image from "next/image";
 import BookEvent from "@/components/BookEvent";
 import EventCard from "@/components/EventCard";
-import {cacheLife} from "next/cache";
+import { connection } from "next/server";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const getBaseUrl = () => {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ??
+    process.env.VERCEL_URL ??
+    "http://localhost:3000";
+
+  if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+    return baseUrl;
+  }
+
+  return `https://${baseUrl}`;
+};
 
 const EventDetailItem = ({ icon, alt, label }: { icon: string; alt: string; label: string; }) => (
     <div className="flex-row-gap-2 items-center">
@@ -35,14 +46,13 @@ const EventTags = ({ tags }: { tags: string[] }) => (
 )
 
 const EventDetails = async ({ params }: { params: Promise<string> }) => {
-    'use cache'
-    cacheLife('hours');
+    await connection();
     const slug = await params;
 
     let event;
     try {
-        const request = await fetch(`${BASE_URL}/api/events/${slug}`, {
-            next: { revalidate: 60 }
+        const request = await fetch(`${getBaseUrl()}/api/events/${slug}`, {
+            cache: "no-store"
         });
 
         if (!request.ok) {
