@@ -3,12 +3,23 @@ import ExploreBtn from "@/components/ExploreBtn";
 import { IEvent } from "@/database";
 import { cacheLife } from "next/cache";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const getBaseUrl = () => {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ??
+    process.env.VERCEL_URL ??
+    "http://localhost:3000";
+
+  if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+    return baseUrl;
+  }
+
+  return `https://${baseUrl}`;
+};
 
 export default async function Home() {
   "use cache";
   cacheLife("hours");
-  const response = await fetch(`${BASE_URL}/api/events`);
+  const response = await fetch(`${getBaseUrl()}/api/events`);
   const { events } = await response.json();
 
   return (

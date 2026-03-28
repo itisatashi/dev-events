@@ -7,7 +7,18 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const getBaseUrl = () => {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ??
+    process.env.VERCEL_URL ??
+    "http://localhost:3000";
+
+  if (baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+    return baseUrl;
+  }
+
+  return `https://${baseUrl}`;
+};
 
 // FormData orqali yuborilgan array'lar ba'zan JSON string sifatida saqlanadi
 // Bu helper ikkala holatni ham xavfsiz hal qiladi
@@ -78,16 +89,19 @@ const SimilarEvents = async ({ slug }: { slug: string }) => {
   );
 };
 
-const EventDetailsPage = async ({
+const EventDetailsContent = async ({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) => {
+  "use cache";
+  cacheLife("minutes");
+
   const { slug } = await params;
 
   let event;
   try {
-    const request = await fetch(`${BASE_URL}/api/events/${slug}`, {
+    const request = await fetch(`${getBaseUrl()}/api/events/${slug}`, {
       next: { revalidate: 60 },
     });
 
@@ -104,8 +118,7 @@ const EventDetailsPage = async ({
     if (!event) {
       return notFound();
     }
-  } catch (error) {
-    console.error("Error fetching event:", error);
+  } catch {
     return notFound();
   }
 
@@ -136,44 +149,24 @@ const EventDetailsPage = async ({
 
       <div className="details">
         <div className="content">
-          <Image
-            src={image}
-            alt="Event Banner"
-            width={800}
-            height={800}
-            className="banner"
-          />
-
+          <Image src={image} alt="Event Banner" width={800} height={800} className="banner" />
           <section className="flex-col-gap-2">
             <h2>Overview</h2>
             <p>{overview}</p>
           </section>
-
           <section className="flex-col-gap-2">
             <h2>Event Details</h2>
-
-            <EventDetailItem
-              icon="/icons/calendar.svg"
-              alt="calendar"
-              label={date}
-            />
+            <EventDetailItem icon="/icons/calendar.svg" alt="calendar" label={date} />
             <EventDetailItem icon="/icons/clock.svg" alt="clock" label={time} />
             <EventDetailItem icon="/icons/pin.svg" alt="pin" label={location} />
             <EventDetailItem icon="/icons/mode.svg" alt="mode" label={mode} />
-            <EventDetailItem
-              icon="/icons/audience.svg"
-              alt="audience"
-              label={audience}
-            />
+            <EventDetailItem icon="/icons/audience.svg" alt="audience" label={audience} />
           </section>
-
           <EventAgenda agendaItems={safeParseArray(agenda)} />
-
           <section className="flex-col-gap-2">
             <h2>About the Organizer</h2>
             <p>{organizer}</p>
           </section>
-
           <EventTags tags={safeParseArray(tags)} />
         </div>
 
@@ -181,13 +174,10 @@ const EventDetailsPage = async ({
           <div className="signup-card">
             <h2>Book Your Spot</h2>
             {bookings > 0 ? (
-              <p className="text-sm">
-                Join {bookings} people who have already booked their spot!
-              </p>
+              <p className="text-sm">Join {bookings} people who have already booked their spot!</p>
             ) : (
               <p className="text-sm">Be the first to book your spot!</p>
             )}
-
             <BookEvent eventId={event._id} slug={slug} />
           </div>
         </aside>
@@ -195,12 +185,23 @@ const EventDetailsPage = async ({
 
       <div className="flex w-full flex-col gap-4 pt-20">
         <h2>Similar Events</h2>
-
         <Suspense fallback={<p>Loading similar events...</p>}>
           <SimilarEvents slug={slug} />
         </Suspense>
       </div>
     </section>
+  );
+};
+
+const EventDetailsPage = ({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) => {
+  return (
+    <Suspense fallback={<p>Loading event...</p>}>
+      <EventDetailsContent params={params} />
+    </Suspense>
   );
 };
 
